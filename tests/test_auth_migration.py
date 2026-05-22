@@ -602,6 +602,10 @@ class TestBrowserErrorMessages:
         with (  # noqa: SIM117
             patch("notebooklm_tools.utils.cdp.get_chrome_path", return_value="/some/browser"),
             patch("notebooklm_tools.utils.cdp.find_existing_nlm_chrome", return_value=(None, None)),
+            patch(
+                "notebooklm_tools.utils.cdp.find_any_existing_cdp_browser",
+                return_value=(None, None),
+            ),
             patch("notebooklm_tools.utils.cdp.is_profile_locked", return_value=False),
             patch("notebooklm_tools.utils.cdp.find_available_port", return_value=9222),
             patch("notebooklm_tools.utils.cdp.launch_chrome", return_value=True),

@@ -430,27 +430,16 @@ def _is_snap_browser(browser_path: str) -> bool:
     if not browser_path:
         return False
 
-    # Direct snap path
-    if browser_path.startswith("/snap/"):
+    # Direct snap path or snap binary wrapper
+    if "/snap/" in browser_path:
         return True
 
-    # Check if it's a snap wrapper script (common for chromium)
+    # Check if it's a symlink pointing to a snap path
     try:
         resolved = Path(browser_path).resolve()
         if "/snap/" in str(resolved):
             return True
     except (OSError, RuntimeError):
-        pass
-
-    # Check if the binary reads from snap directories
-    try:
-        result = subprocess.run(
-            ["readlink", "-f", browser_path],
-            capture_output=True, text=True, timeout=5
-        )
-        if "/snap/" in result.stdout:
-            return True
-    except Exception:
         pass
 
     return False
