@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.12] - 2026-05-24
+
+### Fixed
+
+- **Manual login Netscape cookie parser fixes (PR #199 / Issue #198)** — Fixed three bugs in the Netscape/Mozilla cookie file parser used in `nlm login --manual`:
+  * Resolved a critical bug that treated `#HttpOnly_` lines as comment rows and silently ignored them, which dropped essential Google authentication cookies like `__Secure-1PSIDTS` and `__Secure-3PSIDTS` (resulting in cryptic 401 errors).
+  * Allowed empty-value cookies to be parsed with a value of `""` instead of being skipped by ensuring trailing tab characters are not stripped from the end of the line.
+  * Hardened value extraction to defensively join tab-containing cookie values instead of truncating them.
+  * Added 4 new test cases to prevent future regressions. Thanks to **@pan-long** for the comprehensive PR and excellent troubleshooting!
+- **MCP `source_add` tool and `SKILL.md` file-type alignment (PR #197)** — Updated the `source_add` MCP tool docstring and the global `SKILL.md` guidelines to list all 18 supported file-type extensions (`PDF, TXT, MD, DOCX, CSV, EPUB, MP3, M4A, WAV, AAC, OGG, OPUS, MP4, JPG, JPEG, PNG, GIF, WEBP`) instead of a restricted subset. Also documented how image-bearing sources are ingested to feed the Studio video generation's visual-crop pipeline to generate on-screen visual aids in Video Overviews. Thanks to **@Premshay** for the excellent documentation enhancement and detailed research on the visual-crop pipeline!
+
 ## [0.6.11] - 2026-05-22
 
 ### Fixed
