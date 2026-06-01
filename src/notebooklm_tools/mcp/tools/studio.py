@@ -1,11 +1,19 @@
 """Studio tools - Artifact creation with consolidated studio_create."""
 
+import time as _time
 from typing import Any
 
 from ...services import ServiceError, ValidationError
 from ...services import studio as studio_service
 from ...utils.config import get_base_url, get_default_language
 from ._utils import ResultDict, coerce_list, error_result, get_client, logged_tool
+
+# Auth guard: avoid a live HTTP check on every studio_create call. We check
+# at most once per _AUTH_GUARD_TTL seconds; within that window the previous
+# valid check is reused. Callers that need an immediate re-check (tests,
+# refresh_auth) can reset this to 0.
+_auth_guard_expires: float = 0.0
+_AUTH_GUARD_TTL: float = 60.0
 
 
 def _normalize_studio_validation_error(message: str) -> str:
@@ -146,18 +154,25 @@ def studio_create(
 
     # Pre-flight auth gate: fail loudly NOW rather than returning a fake
     # success with an artifact_id that silently fails seconds later.
-    from notebooklm_tools.core.auth import check_auth
+    # The TTL guard avoids an HTTP round-trip on every call; we check at most
+    # once per minute. On a cache miss we do a live fetch AND save the result
+    # so the next get_client() skips its own re-fetch (CSRF is on disk).
+    global _auth_guard_expires
+    _now = _time.monotonic()
+    if _now >= _auth_guard_expires:
+        from notebooklm_tools.core.auth import check_auth
 
-    auth = check_auth(live=True)
-    if not auth.valid:
-        return error_result(
-            f"Cannot create {artifact_type}: NotebookLM auth is not valid "
-            f"(reason: {auth.reason}). Run `nlm login` in a terminal to "
-            "re-authenticate, then retry. `refresh_auth()` will NOT help if the "
-            "tokens are expired — it only reloads them from disk.",
-            hint="nlm login",
-            reason=auth.reason,
-        )
+        auth = check_auth(live=True)
+        if not auth.valid:
+            return error_result(
+                f"Cannot create {artifact_type}: NotebookLM auth is not valid "
+                f"(reason: {auth.reason}). Run `nlm login` in a terminal to "
+                "re-authenticate, then retry. `refresh_auth()` will NOT help if the "
+                "tokens are expired — it only reloads them from disk.",
+                hint="nlm login",
+                reason=auth.reason,
+            )
+        _auth_guard_expires = _now + _AUTH_GUARD_TTL
 
     try:
         client = get_client()

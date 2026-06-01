@@ -118,6 +118,7 @@ def test_studio_create_fails_loudly_on_stale_auth(monkeypatch):
     """When auth is stale/expired, studio_create() must return status:"error" BEFORE firing a doomed generation request
     — not status:"success" with an artifact_id that immediately fails.
     """
+    studio_tools._auth_guard_expires = 0.0  # force guard expired so auth is re-checked
     monkeypatch.setattr(
         core_auth, "check_auth", lambda **kw: _auth_result(False, "expired"), raising=True
     )
@@ -145,6 +146,7 @@ def test_studio_create_fails_loudly_on_stale_auth(monkeypatch):
 
 def test_studio_create_proceeds_when_auth_valid(monkeypatch):
     """With valid auth, studio_create() must still create the artifact normally."""
+    studio_tools._auth_guard_expires = 0.0  # force guard expired so auth is re-checked
     monkeypatch.setattr(core_auth, "check_auth", lambda **kw: _auth_result(True), raising=True)
     monkeypatch.setattr(studio_tools, "get_client", lambda: _FakeClient(), raising=True)
     monkeypatch.setattr(
@@ -251,6 +253,7 @@ def test_studio_create_e2e_per_auth_state(monkeypatch, auth_state, valid, reason
     """Each auth state must yield a deterministic, actionable outcome: valid → success; any invalid state →
     status:"error" (never a fake success).
     """
+    studio_tools._auth_guard_expires = 0.0  # force guard expired so auth is re-checked
     monkeypatch.setattr(
         core_auth, "check_auth", lambda **kw: _auth_result(valid, reason), raising=True
     )
