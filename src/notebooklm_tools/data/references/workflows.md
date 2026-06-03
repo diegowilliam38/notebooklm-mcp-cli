@@ -33,7 +33,7 @@ Do you want me to proceed with deletion?"
 
 For optimal Studio output, follow the agent playbook in **[studio-prompting-guide.md](studio-prompting-guide.md)**. Copy-paste templates live in **[studio-prompt-examples.md](studio-prompt-examples.md)**.
 
-**Default behavior:** Fast track — infer format and prompt, one-line notice, generate. Guided preview only when vague, high-stakes, or user requests it.
+**Default behavior:** Fast track — infer format and minimal prompt (1–3 sentences), one-line notice, generate. Guided preview for vague, high-stakes, **cinematic video**, or when user requests it. Iterate only on failure or dissatisfaction.
 
 ---
 

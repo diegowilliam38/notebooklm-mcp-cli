@@ -345,9 +345,13 @@ nlm data-table create <id> "Extract all dates and events" --confirm
 
 **Full guides:** [studio-prompting-guide.md](references/studio-prompting-guide.md) | [studio-prompt-examples.md](references/studio-prompt-examples.md)
 
-**Fast track (default):** Infer settings + craft `focus_prompt` / `custom_prompt` / `description` from context → one-line notice → `studio_create(confirm=True)`. Never run multi-question intake.
+**Fast track (default):** Silently infer (user message → notebook title → `notebook_describe` if needed) → **minimal** 1–3 sentence prompt with grounding anchor → one-line notice → `studio_create(confirm=True)`. Never run multi-question intake.
 
-**Guided preview (exception):** Vague request, cinematic video, empty notebook, or user asks to see the prompt first → show settings + full prompt → one optional refine → generate.
+**Guided preview (exception):** Vague request, **any cinematic video**, high-stakes deliverable, empty notebook, or user asks → show settings + **full** prompt → one optional refine → generate.
+
+**Grounding anchor (every prompt):** `Use only uploaded sources. Do not invent statistics, quotes, or examples not in the sources.`
+
+**Iterate only on failure or user dissatisfaction** — do not proactively offer regen on success. Slides: use `studio_revise` for targeted fixes.
 
 **Prompt parameters by artifact:**
 
