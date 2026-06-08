@@ -1,8 +1,132 @@
 """Source tools - Source management with consolidated source_add."""
 
+import hashlib
+import json
+import os
+import tempfile
+import urllib.request
+from pathlib import Path
+from urllib.parse import urlparse
+
 from ...services import ServiceError, ValidationError
 from ...services import sources as sources_service
 from ._utils import ResultDict, coerce_list, error_result, get_client, logged_tool
+
+
+CHATGPT_FILE_MAX_BYTES = int(os.environ.get("NOTEBOOKLM_CHATGPT_FILE_MAX_BYTES", str(25 * 1024 * 1024)))
+CHATGPT_FILE_CACHE_DIR = Path(
+    os.environ.get("NOTEBOOKLM_CHATGPT_FILE_CACHE_DIR", "")
+    or Path(tempfile.gettempdir()) / "notebooklm-chatgpt-files"
+)
+CHATGPT_FILE_ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".txt",
+    ".md",
+    ".docx",
+    ".csv",
+    ".epub",
+    ".mp3",
+    ".m4a",
+    ".wav",
+    ".aac",
+    ".ogg",
+    ".opus",
+    ".mp4",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".webp",
+}
+
+
+def _safe_chatgpt_filename(name: object, default: str = "chatgpt-upload.bin") -> str:
+    raw = Path(str(name or default)).name
+    safe = "".join(ch if ch.isalnum() or ch in "._- ()" else "_" for ch in raw).strip(". ")
+    return safe[:180] or default
+
+
+def _coerce_chatgpt_file_reference(file: dict[str, object] | str | None) -> dict[str, object]:
+    if isinstance(file, dict):
+        return file
+    if isinstance(file, str):
+        raw = file.strip()
+        if not raw:
+            raise ValidationError("file must be a resolved ChatGPT file object, not an empty string.")
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValidationError(
+                "file must be a resolved ChatGPT file object or a JSON-encoded file object."
+            ) from exc
+        if isinstance(parsed, dict):
+            return parsed
+    raise ValidationError("file must be a ChatGPT file object.")
+
+
+def _chatgpt_file_url(file: dict[str, object]) -> str:
+    value = file.get("download_url") or file.get("download_link")
+    if not isinstance(value, str) or not value.strip():
+        raise ValidationError("file.download_url is required for ChatGPT file uploads.")
+    parsed = urlparse(value)
+    if parsed.scheme.lower() != "https":
+        raise ValidationError("ChatGPT file download URL must use https.")
+    return value
+
+
+def _download_chatgpt_file(file: dict[str, object]) -> dict[str, object]:
+    file_name = _safe_chatgpt_filename(file.get("file_name") or file.get("name"))
+    extension = Path(file_name).suffix.lower()
+    if extension not in CHATGPT_FILE_ALLOWED_EXTENSIONS:
+        raise ValidationError(
+            f"Unsupported ChatGPT file extension '{extension or '[none]'}'. "
+            "Upload a NotebookLM-supported file type."
+        )
+
+    CHATGPT_FILE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    local_path = CHATGPT_FILE_CACHE_DIR / file_name
+    if local_path.exists():
+        stem = local_path.stem[:120]
+        local_path = CHATGPT_FILE_CACHE_DIR / f"{stem}-{os.urandom(4).hex()}{extension}"
+
+    url = _chatgpt_file_url(file)
+    request = urllib.request.Request(url, headers={"User-Agent": "notebooklm-mcp-chatgpt-file/1.0"})
+    sha256 = hashlib.sha256()
+    total = 0
+
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response, local_path.open("xb") as out:
+            declared = response.headers.get("Content-Length")
+            if declared and int(declared) > CHATGPT_FILE_MAX_BYTES:
+                raise ValidationError(
+                    f"ChatGPT file exceeds size limit ({CHATGPT_FILE_MAX_BYTES} bytes)."
+                )
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > CHATGPT_FILE_MAX_BYTES:
+                    raise ValidationError(
+                        f"ChatGPT file exceeds size limit ({CHATGPT_FILE_MAX_BYTES} bytes)."
+                    )
+                sha256.update(chunk)
+                out.write(chunk)
+    except Exception:
+        local_path.unlink(missing_ok=True)
+        raise
+
+    if total == 0:
+        local_path.unlink(missing_ok=True)
+        raise ValidationError("ChatGPT file is empty.")
+
+    return {
+        "file_path": str(local_path),
+        "file_name": file_name,
+        "size_bytes": total,
+        "sha256": sha256.hexdigest(),
+        "original_file_id": str(file.get("file_id") or file.get("id") or ""),
+    }
 
 
 def _normalize_source_validation_error(message: str) -> str:
@@ -10,6 +134,56 @@ def _normalize_source_validation_error(message: str) -> str:
     if message.startswith("Unknown source type "):
         return message.replace("Unknown source type", "Unknown source_type", 1)
     return message
+
+
+@logged_tool(meta={"openai/fileParams": ["file"]})
+def source_add_chatgpt_file(
+    notebook_id: str,
+    file: dict[str, object] | str | None,
+    title: str | None = None,
+    wait: bool = False,
+    wait_timeout: float = 120.0,
+    cleanup: bool = True,
+) -> ResultDict:
+    """Add a normally uploaded ChatGPT file to a NotebookLM notebook.
+
+    ChatGPT Apps SDK resolves the top-level `file` parameter when this tool is
+    called with a user-uploaded file. The resolved object contains a temporary
+    HTTPS download URL plus file metadata. This tool downloads the file into a
+    local cache, uploads it to NotebookLM through the existing local-file source
+    path, then optionally deletes the cached copy.
+    """
+    cached: dict[str, object] | None = None
+    try:
+        file_ref = _coerce_chatgpt_file_reference(file)
+        cached = _download_chatgpt_file(file_ref)
+        result = source_add(
+            notebook_id=notebook_id,
+            source_type="file",
+            file_path=str(cached["file_path"]),
+            title=title,
+            wait=wait,
+            wait_timeout=wait_timeout,
+        )
+        if result.get("status") == "success":
+            result["chatgpt_file"] = {
+                "original_file_id": cached["original_file_id"],
+                "file_name": cached["file_name"],
+                "size_bytes": cached["size_bytes"],
+                "sha256": cached["sha256"],
+                "cached_path": None if cleanup else cached["file_path"],
+                "cleanup": cleanup,
+            }
+        return result
+    except ValidationError as e:
+        return error_result(_normalize_source_validation_error(str(e)))
+    except ServiceError as e:
+        return error_result(e.user_message, hint=e.hint)
+    except Exception as e:
+        return error_result(str(e))
+    finally:
+        if cleanup and cached and cached.get("file_path"):
+            Path(str(cached["file_path"])).unlink(missing_ok=True)
 
 
 @logged_tool()

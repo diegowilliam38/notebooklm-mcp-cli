@@ -17,7 +17,17 @@ from notebooklm_tools.services.auth import load_cached_tokens
 mcp_logger = logging.getLogger("notebooklm_tools.mcp")
 
 # Parameters that must never appear in log output
-_SENSITIVE_PARAMS = frozenset({"cookies", "csrf_token", "session_id", "request_body"})
+_SENSITIVE_PARAMS = frozenset(
+    {
+        "cookies",
+        "csrf_token",
+        "session_id",
+        "request_body",
+        "download_url",
+        "download_link",
+        "file",
+    }
+)
 P = ParamSpec("P")
 R = TypeVar("R")
 T = TypeVar("T")
@@ -150,10 +160,13 @@ def get_mcp_instance() -> Any:
 
 
 # Registry for tools - allows registration without immediate mcp dependency
-_tool_registry: list[tuple[str, Callable[..., Any]]] = []
+_tool_registry: list[tuple[str, Callable[..., Any], dict[str, Any] | None]] = []
 
 
-def logged_tool() -> Callable[[Callable[P, Any]], Callable[P, Any]]:
+def logged_tool(
+    *,
+    meta: dict[str, Any] | None = None,
+) -> Callable[[Callable[P, Any]], Callable[P, Any]]:
     """Decorator that adds MCP request/response logging to a tool.
 
     Decorated tools are added to the internal registry for later MCP server
@@ -209,7 +222,7 @@ def logged_tool() -> Callable[[Callable[P, Any]], Callable[P, Any]]:
             wrapper = sync_wrapper
 
         # Store for later registration
-        _tool_registry.append((func.__name__, cast(Callable[..., Any], wrapper)))
+        _tool_registry.append((func.__name__, cast(Callable[..., Any], wrapper), meta))
         return wrapper
 
     return decorator
@@ -217,8 +230,11 @@ def logged_tool() -> Callable[[Callable[P, Any]], Callable[P, Any]]:
 
 def register_all_tools(mcp: Any) -> None:
     """Register all collected tools with the MCP instance."""
-    for _, wrapper in _tool_registry:
-        mcp.tool()(wrapper)
+    for _, wrapper, meta in _tool_registry:
+        if meta:
+            mcp.tool(meta=meta)(wrapper)
+        else:
+            mcp.tool()(wrapper)
 
 
 # Essential cookies for NotebookLM API authentication
