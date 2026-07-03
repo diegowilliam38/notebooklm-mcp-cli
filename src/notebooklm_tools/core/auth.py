@@ -275,23 +275,9 @@ REQUIRED_COOKIES = ["SID", "HSID", "SSID", "APISID", "SAPISID"]
 
 def _flatten_cookie_input(cookies: dict[str, str] | list[dict[str, Any]]) -> dict[str, str]:
     """Flatten cookies while preferring exact ``.google.com`` domain values."""
-    if isinstance(cookies, dict):
-        return cookies
+    from notebooklm_tools.utils.browser import flatten_cookies
 
-    out: dict[str, str] = {}
-    google_locked: set[str] = set()
-    for cookie in cookies:
-        name = cookie.get("name")
-        value = cookie.get("value")
-        if not name or value is None:
-            continue
-        is_google = (cookie.get("domain") or "").lstrip(".").lower() == "google.com"
-        if name in google_locked and not is_google:
-            continue
-        out[str(name)] = str(value)
-        if is_google:
-            google_locked.add(str(name))
-    return out
+    return flatten_cookies(cookies)
 
 
 def validate_cookies(cookies: dict[str, str] | list[dict[str, Any]]) -> bool:

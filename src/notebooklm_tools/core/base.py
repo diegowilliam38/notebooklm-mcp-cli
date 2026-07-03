@@ -473,12 +473,10 @@ class BaseClient:
 
     def _get_cookie_header(self) -> str:
         """Get Cookie header string (backward compatibility)."""
-        if isinstance(self.cookies, list):
-            from .auth import _flatten_cookie_input
+        from notebooklm_tools.utils.browser import flatten_cookies
 
-            simple_cookies = _flatten_cookie_input(self.cookies)
-            return "; ".join(f"{k}={v}" for k, v in simple_cookies.items())
-        return "; ".join(f"{k}={v}" for k, v in self.cookies.items())
+        simple_cookies = flatten_cookies(self.cookies)
+        return "; ".join(f"{k}={v}" for k, v in simple_cookies.items())
 
     # =========================================================================
     # HTTP Client Management
