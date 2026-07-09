@@ -1012,8 +1012,7 @@ def execute_cdp_command(
                 response_timeout=response_timeout,
             )
         except Exception:
-            with _cdp_ws_lock:
-                _reset_cached_ws_unlocked()
+            pass  # Fall through to reconnect below
 
     with _cdp_ws_lock:
         if ws_url != _cached_ws_url or not _cached_ws:
