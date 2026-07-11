@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2026-07-11
+
+### Fixed
+- **`nlm doctor auth-replay` false `browser_bound_replay` verdict on merely expired cookies (#248)** — The diagnostic previously compared *stale on-disk* cookies (`httpx_saved`, `httpx_after_rotate`) against an *always-fresh* live browser session (`cdp_in_page`). Since a live session's cookies are fresh by construction, that comparison could not distinguish ordinary cookie expiry from genuine device-bound replay — both produce the exact same pass/fail pattern. The diagnostic now re-extracts cookies from the same live browser session used for the CDP probe and replays them through plain httpx (new `httpx_fresh` lane) before drawing a conclusion. If fresh cookies succeed over httpx, the verdict is now the new `stale_cookies` (run `nlm login`, no transport needed); `browser_bound_replay` is only reported when even freshly re-extracted cookies fail outside the browser. Thanks to **@leomesheti-crypto** for the detailed controlled-comparison report that caught this.
+
+### Changed
+- **`nlm doctor auth-replay` now reports four lanes** instead of three: saved-cookie httpx replay, httpx after forced cookie rotation, fresh-cookie httpx replay, and the in-page CDP fetch. `--no-cdp` skips the two browser-backed lanes together.
+- Updated `docs/AUTHENTICATION.md` to describe the corrected four-lane diagnostic and clarify when the experimental `NOTEBOOKLM_RPC_TRANSPORT=cdp` transport is actually justified.
+
+### Other
+- README: moved the "Buy Me a Coffee" call-out from a low-visibility badge in the top badge row to a prominent, centered block near the top of the page.
+
 ## [0.8.5] - 2026-07-10
 
 ### Added
