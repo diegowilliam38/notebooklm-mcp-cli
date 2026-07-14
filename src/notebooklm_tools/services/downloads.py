@@ -10,7 +10,7 @@ from ..core.client import NotebookLMClient
 from ..core.errors import ArtifactDownloadError
 from ._compat import TypedDict
 from .errors import ServiceError, ValidationError
-from .notebooks import get_notebook
+from .notebooks import get_notebook, list_notebooks
 from .studio import get_studio_status
 
 VALID_ARTIFACT_TYPES = (
@@ -92,6 +92,29 @@ class DownloadAllResult(TypedDict):
     total_artifacts: int
     downloaded: int
     failed: int
+
+
+class NotebookSweepItem(TypedDict):
+    """Per-notebook outcome of a download_all_notebooks() sweep."""
+
+    notebook_id: str
+    notebook_title: str
+    output_dir: str | None
+    downloaded: int
+    failed: int
+    skipped: int
+    error: str | None
+
+
+class DownloadAllNotebooksResult(TypedDict):
+    """Result of sweeping every notebook with download_all()."""
+
+    output_dir: str
+    notebooks: list[NotebookSweepItem]
+    total_notebooks: int
+    downloaded: int
+    failed: int
+    errored_notebooks: int
 
 
 # Directories that are always blocked as download targets, regardless of platform.
@@ -375,6 +398,7 @@ async def download_all(
     artifact_types: Sequence[str] | None = None,
     output_format: str = "json",
     slide_deck_format: str = "pdf",
+    skip_existing: bool = False,
     progress_factory: Callable[[str, str], Callable[[int, int], None] | None] | None = None,
 ) -> DownloadAllResult:
     """Download every completed studio artifact of a notebook.
@@ -391,6 +415,8 @@ async def download_all(
         artifact_types: Restrict to these types (default: all valid types)
         output_format: For quiz/flashcards: json|markdown|html
         slide_deck_format: For slide decks: pdf (default) or pptx
+        skip_existing: Skip artifacts whose target file already exists,
+            making repeated runs incremental
         progress_factory: Called with (artifact_type, filename) before each
             streaming download; may return a (current, total) progress callback
 
@@ -473,6 +499,17 @@ async def download_all(
         used_names.add(filename)
         output_path = str(notebook_dir / filename)
 
+        if skip_existing and (notebook_dir / filename).exists():
+            skipped.append(
+                {
+                    "artifact_id": artifact_id,
+                    "artifact_type": artifact_type,
+                    "title": title,
+                    "reason": "already downloaded",
+                }
+            )
+            continue
+
         progress_callback = None
         if progress_factory is not None and artifact_type in STREAMING_TYPES:
             progress_callback = progress_factory(artifact_type, filename)
@@ -531,6 +568,117 @@ async def download_all(
         "total_artifacts": status["total"],
         "downloaded": downloaded,
         "failed": len(items) - downloaded,
+    }
+
+
+async def download_all_notebooks(
+    client: NotebookLMClient,
+    output_dir: str = ".",
+    artifact_types: Sequence[str] | None = None,
+    output_format: str = "json",
+    slide_deck_format: str = "pdf",
+    skip_existing: bool = False,
+    progress_factory: Callable[[str, str], Callable[[int, int], None] | None] | None = None,
+    on_notebook: Callable[[int, int, str], None] | None = None,
+) -> DownloadAllNotebooksResult:
+    """Run download_all() over every notebook in the account.
+
+    Each notebook gets its own subdirectory of ``output_dir``. A failure on
+    one notebook (or one artifact) is recorded and does not stop the sweep.
+    With ``skip_existing`` the sweep is incremental: artifacts whose target
+    file already exists are not re-downloaded.
+
+    Args:
+        client: Authenticated NotebookLM client
+        output_dir: Base directory for the per-notebook directories
+        artifact_types: Restrict to these types (default: all valid types)
+        output_format: For quiz/flashcards: json|markdown|html
+        slide_deck_format: For slide decks: pdf (default) or pptx
+        skip_existing: Skip artifacts whose target file already exists
+        progress_factory: Passed through to download_all() for each notebook
+        on_notebook: Called with (index, total, title) before each notebook —
+            a UX hook for progress narration
+
+    Returns:
+        DownloadAllNotebooksResult with per-notebook outcomes and totals
+
+    Raises:
+        ValidationError: If a requested type or format is invalid
+        ServiceError: If the notebook list cannot be retrieved
+    """
+    requested = tuple(artifact_types) if artifact_types else VALID_ARTIFACT_TYPES
+    for artifact_type in requested:
+        validate_artifact_type(artifact_type)
+    validate_output_format(output_format)
+    validate_slide_deck_format(slide_deck_format)
+
+    notebooks = list_notebooks(client)["notebooks"]
+
+    sweep: list[NotebookSweepItem] = []
+    total_downloaded = total_failed = 0
+    for index, notebook in enumerate(notebooks, 1):
+        title = notebook.get("title") or notebook["id"]
+        if on_notebook is not None:
+            on_notebook(index, len(notebooks), title)
+        try:
+            result = await download_all(
+                client,
+                notebook["id"],
+                output_dir,
+                artifact_types=artifact_types,
+                output_format=output_format,
+                slide_deck_format=slide_deck_format,
+                skip_existing=skip_existing,
+                progress_factory=progress_factory,
+            )
+        except ServiceError as e:
+            sweep.append(
+                {
+                    "notebook_id": notebook["id"],
+                    "notebook_title": title,
+                    "output_dir": None,
+                    "downloaded": 0,
+                    "failed": 0,
+                    "skipped": 0,
+                    "error": e.user_message or str(e),
+                }
+            )
+            continue
+        except Exception as e:
+            sweep.append(
+                {
+                    "notebook_id": notebook["id"],
+                    "notebook_title": title,
+                    "output_dir": None,
+                    "downloaded": 0,
+                    "failed": 0,
+                    "skipped": 0,
+                    "error": str(e),
+                }
+            )
+            continue
+
+        total_downloaded += result["downloaded"]
+        total_failed += result["failed"]
+        sweep.append(
+            {
+                "notebook_id": result["notebook_id"],
+                "notebook_title": result["notebook_title"],
+                "output_dir": result["output_dir"],
+                "downloaded": result["downloaded"],
+                "failed": result["failed"],
+                "skipped": len(result["skipped"]),
+                "error": None,
+            }
+        )
+
+    return {
+        "output_dir": str(Path(output_dir).expanduser()),
+        "notebooks": sweep,
+        "total_notebooks": len(notebooks),
+        "downloaded": total_downloaded,
+        "failed": total_failed,
+        "errored_notebooks": sum(1 for item in sweep if item["error"]),
     }
 
 

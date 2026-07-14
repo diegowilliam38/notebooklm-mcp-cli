@@ -9,6 +9,7 @@ from notebooklm_tools.services.downloads import (
     VALID_ARTIFACT_TYPES,
     VALID_OUTPUT_FORMATS,
     download_all,
+    download_all_notebooks,
     download_async,
     download_sync,
     get_default_extension,
@@ -491,3 +492,117 @@ class TestDownloadAll:
         args = bulk_client.download_mind_map.call_args
         assert args[0][0] == "nb-1"
         assert args[0][2] == "mm-7"
+
+    @pytest.mark.asyncio
+    async def test_skip_existing_skips_present_files(self, bulk_client, monkeypatch, tmp_path):
+        _patch_lookups(
+            monkeypatch,
+            [
+                _artifact(artifact_id="a1", type="report", title="Existing"),
+                _artifact(artifact_id="a2", type="report", title="Fresh"),
+            ],
+        )
+        nb_dir = tmp_path / "My Notebook"
+        nb_dir.mkdir()
+        (nb_dir / "Existing.md").write_text("old content", encoding="utf-8")
+
+        result = await download_all(bulk_client, "nb-1", str(tmp_path), skip_existing=True)
+
+        assert result["downloaded"] == 1
+        assert result["items"][0]["title"] == "Fresh"
+        assert result["skipped"][0]["reason"] == "already downloaded"
+        assert (nb_dir / "Existing.md").read_text(encoding="utf-8") == "old content"
+
+    @pytest.mark.asyncio
+    async def test_without_skip_existing_overwrites(self, bulk_client, monkeypatch, tmp_path):
+        _patch_lookups(monkeypatch, [_artifact(artifact_id="a1", type="report", title="Existing")])
+        nb_dir = tmp_path / "My Notebook"
+        nb_dir.mkdir()
+        (nb_dir / "Existing.md").write_text("old content", encoding="utf-8")
+
+        result = await download_all(bulk_client, "nb-1", str(tmp_path))
+
+        assert result["downloaded"] == 1
+        assert result["skipped"] == []
+
+
+def _patch_notebook_list(monkeypatch, notebooks):
+    monkeypatch.setattr(
+        "notebooklm_tools.services.downloads.list_notebooks",
+        lambda client: {"notebooks": notebooks},
+    )
+
+
+class TestDownloadAllNotebooks:
+    """Test download_all_notebooks — the account-wide sweep."""
+
+    @pytest.mark.asyncio
+    async def test_sweeps_every_notebook(self, bulk_client, monkeypatch, tmp_path):
+        _patch_notebook_list(
+            monkeypatch,
+            [{"id": "nb-1", "title": "First"}, {"id": "nb-2", "title": "Second"}],
+        )
+        monkeypatch.setattr(
+            "notebooklm_tools.services.downloads.get_notebook",
+            lambda client, nb: {
+                "notebook_id": nb,
+                "title": {"nb-1": "First", "nb-2": "Second"}[nb],
+            },
+        )
+        monkeypatch.setattr(
+            "notebooklm_tools.services.downloads.get_studio_status",
+            lambda client, nb: {
+                "artifacts": [_artifact(artifact_id=f"{nb}-a1", type="report", title="Report")],
+                "total": 1,
+                "completed": 1,
+                "in_progress": 0,
+            },
+        )
+
+        seen: list[tuple[int, int, str]] = []
+        result = await download_all_notebooks(
+            bulk_client, str(tmp_path), on_notebook=lambda i, n, t: seen.append((i, n, t))
+        )
+
+        assert result["total_notebooks"] == 2
+        assert result["downloaded"] == 2
+        assert result["failed"] == 0
+        assert result["errored_notebooks"] == 0
+        assert seen == [(1, 2, "First"), (2, 2, "Second")]
+        assert (tmp_path / "First" / "Report.md").name == "Report.md"
+        assert [nb["notebook_title"] for nb in result["notebooks"]] == ["First", "Second"]
+
+    @pytest.mark.asyncio
+    async def test_notebook_error_does_not_stop_sweep(self, bulk_client, monkeypatch, tmp_path):
+        _patch_notebook_list(
+            monkeypatch,
+            [{"id": "nb-bad", "title": "Broken"}, {"id": "nb-ok", "title": "Fine"}],
+        )
+        monkeypatch.setattr(
+            "notebooklm_tools.services.downloads.get_notebook",
+            lambda client, nb: {"notebook_id": nb, "title": "Fine" if nb == "nb-ok" else "Broken"},
+        )
+
+        def _status(client, nb):
+            if nb == "nb-bad":
+                raise ServiceError("poll failed", user_message="Could not retrieve studio status.")
+            return {
+                "artifacts": [_artifact(artifact_id="a1", type="report", title="Report")],
+                "total": 1,
+                "completed": 1,
+                "in_progress": 0,
+            }
+
+        monkeypatch.setattr("notebooklm_tools.services.downloads.get_studio_status", _status)
+
+        result = await download_all_notebooks(bulk_client, str(tmp_path))
+
+        assert result["errored_notebooks"] == 1
+        assert result["downloaded"] == 1
+        bad = next(nb for nb in result["notebooks"] if nb["notebook_id"] == "nb-bad")
+        assert bad["error"] == "Could not retrieve studio status."
+
+    @pytest.mark.asyncio
+    async def test_invalid_type_raises_before_listing(self, bulk_client, tmp_path):
+        with pytest.raises(ValidationError, match="Unknown artifact type"):
+            await download_all_notebooks(bulk_client, str(tmp_path), artifact_types=["podcast"])

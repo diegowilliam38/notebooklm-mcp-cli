@@ -702,6 +702,24 @@ downloaded/failed/skipped counts. Also test `--types video,report` filtering.
 
 ---
 
+### Test 6.7 - Sweep All Notebooks (Incremental)
+**Tool:** `download_all_artifacts` with `all_notebooks=True, skip_existing=True`
+**CLI:** `nlm download all --all-notebooks --skip-existing --output-dir /tmp/exports`
+
+**Prompt:**
+```
+Download all artifacts from every notebook into /tmp/exports, skipping
+files that already exist.
+```
+
+**Expected:** One subdirectory per notebook. On a second run with
+`skip_existing`, previously downloaded artifacts are reported as skipped
+("already downloaded") and only new artifacts are fetched. A failure on one
+notebook doesn't stop the sweep; result includes per-notebook counts and
+`errored_notebooks`.
+
+---
+
 ## Test Group 7: Sharing
 
 ### Test 7.1 - Get Share Status
