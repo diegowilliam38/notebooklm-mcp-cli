@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-07-14
+
+### Added
+- **JSON output parity for scripting and agents (#256)** — Added `--json` support to source add/delete, notebook delete, and every Studio creation command. Noun-first and verb-first command styles now expose the same JSON options, with machine-readable IDs and deletion confirmations.
+- **Notebook emoji and query context in JSON (#256)** — `nlm notebook get --json` now includes the notebook emoji, and `nlm notebook query --json` includes the original question alongside the answer and citations.
+
+### Fixed
+- **Mind maps mislabeled as flashcards in Studio status** — NotebookLM now returns saved mind maps through the shared Studio type code `4` with subtype `4`. Status parsing now identifies them as `mind_map`, avoids counting their metadata as flashcards, and deduplicates entries returned by both status paths.
+- **Drive-picker PDFs mislabeled as Word documents** — When NotebookLM returns the ambiguous source type code `14`, source listing and content metadata now prefer an explicit `application/pdf` MIME type. The raw numeric code remains unchanged for compatibility.
+
+### Documentation
+- Updated the CLI and AI-facing command references for the new JSON output options and documented the live-observed Studio mind-map subtype.
+
 ## [0.8.6] - 2026-07-11
 
 ### Fixed
