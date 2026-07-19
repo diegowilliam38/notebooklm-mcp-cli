@@ -344,7 +344,7 @@ def download_all_cmd(
     else:
         _print_download_all_result(result)
 
-    if result["downloaded"] == 0 and result["failed"] > 0:
+    if result["downloaded"] == 0 and (result["failed"] > 0 or result.get("errored_notebooks", 0) > 0):
         raise typer.Exit(1)
 
 

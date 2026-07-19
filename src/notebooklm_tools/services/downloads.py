@@ -400,6 +400,7 @@ async def download_all(
     slide_deck_format: str = "pdf",
     skip_existing: bool = False,
     progress_factory: Callable[[str, str], Callable[[int, int], None] | None] | None = None,
+    notebook_dir_name: str | None = None,
 ) -> DownloadAllResult:
     """Download every completed studio artifact of a notebook.
 
@@ -440,9 +441,10 @@ async def download_all(
 
     status = get_studio_status(client, notebook_id)
 
-    notebook_dir = Path(output_dir).expanduser() / sanitize_filename(
+    dir_name = notebook_dir_name if notebook_dir_name else sanitize_filename(
         notebook_title, fallback=notebook_id
     )
+    notebook_dir = Path(output_dir).expanduser() / dir_name
     validate_output_path(str(notebook_dir))
     notebook_dir.mkdir(parents=True, exist_ok=True)
 
@@ -493,10 +495,10 @@ async def download_all(
         stem = sanitize_filename(title, fallback=artifact_type)
         filename = f"{stem}.{ext}"
         counter = 2
-        while filename in used_names:
+        while filename.lower() in used_names:
             filename = f"{stem}_{counter}.{ext}"
             counter += 1
-        used_names.add(filename)
+        used_names.add(filename.lower())
         output_path = str(notebook_dir / filename)
 
         if skip_existing and (notebook_dir / filename).exists():
@@ -616,8 +618,19 @@ async def download_all_notebooks(
 
     sweep: list[NotebookSweepItem] = []
     total_downloaded = total_failed = 0
+    used_dirs: set[str] = set()
+
     for index, notebook in enumerate(notebooks, 1):
         title = notebook.get("title") or notebook["id"]
+        
+        base_dir = sanitize_filename(title, fallback=notebook["id"])
+        dir_name = base_dir
+        counter = 2
+        while dir_name.lower() in used_dirs:
+            dir_name = f"{base_dir}_{counter}"
+            counter += 1
+        used_dirs.add(dir_name.lower())
+
         if on_notebook is not None:
             on_notebook(index, len(notebooks), title)
         try:
@@ -630,6 +643,7 @@ async def download_all_notebooks(
                 slide_deck_format=slide_deck_format,
                 skip_existing=skip_existing,
                 progress_factory=progress_factory,
+                notebook_dir_name=dir_name,
             )
         except ServiceError as e:
             sweep.append(
