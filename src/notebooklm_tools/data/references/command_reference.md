@@ -632,6 +632,29 @@ nlm download quiz <nb-id> --output quiz.html --format html
 nlm download flashcards <nb-id> --output cards.json --format json
 ```
 
+### nlm download all
+
+Download every completed artifact of a notebook — or every notebook — into
+per-notebook directories named after each notebook's title.
+
+```bash
+nlm download all <notebook-id> [OPTIONS]
+nlm download all --all-notebooks [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--output-dir`, `-d` | Base directory; a subdirectory per notebook is created inside |
+| `--types`, `-t` | Comma-separated artifact types to include (default: all) |
+| `--all-notebooks`, `-a` | Sweep every notebook in the account |
+| `--skip-existing` | Skip artifacts whose file already exists (incremental re-runs) |
+
+**Examples:**
+```bash
+nlm download all <nb-id> --output-dir ./exports
+nlm download all --all-notebooks --output-dir ./exports --skip-existing
+```
+
 ---
 
 ## Export Commands

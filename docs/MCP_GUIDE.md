@@ -1,6 +1,6 @@
 # MCP Guide
 
-Complete reference for the NotebookLM MCP server — **39 tools** for AI assistants.
+Complete reference for the NotebookLM MCP server — **40 tools** for AI assistants.
 
 ## Installation
 
@@ -115,11 +115,12 @@ source_add(
 - `infographic` - Visual infographic
 - `data_table` - Structured data table
 
-### Downloads (1 tool)
+### Downloads (2 tools)
 
 | Tool | Description |
 |------|-------------|
 | `download_artifact` | **Unified** - Download any artifact type |
+| `download_all_artifacts` | Download every completed artifact of a notebook — or every notebook with `all_notebooks=True` — into per-notebook folders |
 
 **`download_artifact` types:**
 `audio`, `video`, `report`, `mind_map`, `slide_deck`, `infographic`, `data_table`, `quiz`, `flashcards`
@@ -332,11 +333,11 @@ pipeline(action="run", notebook_id="abc", pipeline_name="ingest-and-podcast", in
 
 ## Context Window Tips
 
-This MCP has **39 tools** which consume context. Best practices:
+This MCP has **40 tools** which consume context. Best practices:
 
 - **Disable when not using**: In Claude Code, use `@notebooklm-mcp` to toggle
 - **Hide tools you don't need**: See [Selective tool exposure](#selective-tool-exposure) below to expose only a subset
-- **Use unified tools**: `source_add`, `studio_create`, `download_artifact` handle multiple operations each
+- **Use unified tools**: `source_add`, `studio_create`, `download_artifact`, `download_all_artifacts` handle multiple operations each
 - **Poll wisely**: Use `studio_status` sparingly - artifacts take 1-5 minutes
 
 ### Selective tool exposure

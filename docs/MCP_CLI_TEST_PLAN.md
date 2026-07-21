@@ -960,7 +960,7 @@ Get NotebookLM MCP server version and check for updates.
 
 ---
 
-## Summary: 30 Consolidated Tools
+## Summary: 31 Consolidated Tools
 
 | Category | Tools | Count |
 |----------|-------|-------|

@@ -139,6 +139,10 @@ nlm download data-table <notebook> <artifact-id> --output data.csv
 # Interactive formats (quiz/flashcards)
 nlm download quiz <notebook> <artifact-id> --format html --output quiz.html
 nlm download flashcards <notebook> <artifact-id> --format markdown --output cards.md
+
+# Download every completed artifact into a per-notebook folder
+nlm download all <notebook> --output-dir ./exports
+nlm download all --all-notebooks --output-dir ./exports --skip-existing
 ```
 
 ### Research
