@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-20
+
+### Added
+- **Bulk artifact download (#264)** — New MCP tool `download_all_artifacts` and CLI command `nlm download all` download every completed Studio artifact of a notebook — or every notebook in the account with `--all-notebooks`/`all_notebooks=True` — into per-notebook directories named after each notebook's title. Supports an `--types`/`artifact_types` filter, `--skip-existing`/`skip_existing` for incremental re-runs, and safe cross-platform filenames (invalid characters replaced, Windows reserved names escaped, collisions deduped case-insensitively for both notebook directories and artifact filenames). A failure on one artifact or notebook is recorded and does not stop the rest; the CLI exits non-zero only when nothing was downloaded and failures occurred. Thanks to **@runthangs** for the contribution (PR #264, addressing review feedback from #258)!
+
+### Documentation
+- Reconciled the MCP tool count (39 → 40) and added `download_all_artifacts`/`nlm download all` across the README, MCP Guide, CLI Guide, packaged skill, and command reference.
+
 ## [0.8.9] - 2026-07-17
 
 ### Added

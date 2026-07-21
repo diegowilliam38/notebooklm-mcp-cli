@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-version: "0.8.9"
+version: "0.9.0"
 description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", \"refactor document\", \"critique draft\", or any NotebookLM-related automation task."
 ---
 
@@ -65,7 +65,7 @@ nlm --version           # Check installed version
 12. **Use `--help` when unsure**: Run `nlm <command> --help` to see available options and flags for any command.
 13. **Studio: fast track by default**: Infer format/style/prompt silently—one compact line, then `studio_create(confirm=True)`. No intake questionnaires. Fast track reduces clarifying questions, not the confirm gate. **Cinematic video is always guided** (quota-limited). Full preview only when vague, high-stakes, cinematic, or user asks. See **[references/studio-prompting-guide.md](references/studio-prompting-guide.md)**.
 
-**Current MCP surface:** 39 tools. Consolidated action tools include `note`,
+**Current MCP surface:** 40 tools. Consolidated action tools include `note`,
 `label`, `studio_status`, `batch`, `pipeline`, and `tag`. Consolidated type
 tools include `source_add`, `studio_create`, and `download_artifact`.
 
@@ -440,7 +440,9 @@ supported types with `action="list_types"`. Failed artifacts include
 `error_reason`. Detailed mode also includes `source_ids`; an empty list means
 the upstream payload did not expose provenance, not necessarily that no
 sources were used. Use `download_artifact` with `artifact_type` and
-`output_path`, `export_artifact` with `export_type` (`docs`/`sheets`), and
+`output_path`, `download_all_artifacts` to fetch every completed artifact of a
+notebook (or every notebook with `all_notebooks=True`) into per-notebook
+folders, `export_artifact` with `export_type` (`docs`/`sheets`), and
 `studio_delete` with `confirm=True`.
 
 #### CLI Commands
@@ -461,6 +463,8 @@ nlm download report <nb-id> --output report.md
 nlm download slide-deck <nb-id> --output slides.pdf           # PDF (default)
 nlm download slide-deck <nb-id> --output slides.pptx --format pptx  # PPTX
 nlm download quiz <nb-id> --output quiz.html --format html    # Also: json, markdown
+nlm download all <nb-id> -d ./exports                          # Every completed artifact
+nlm download all --all-notebooks -d ./exports --skip-existing  # Sweep every notebook
 
 # Export to Google Docs/Sheets
 nlm export sheets <nb-id> <artifact-id> --title "My Data Table"
