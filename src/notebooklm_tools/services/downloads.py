@@ -452,8 +452,10 @@ async def download_all(
 
     status = get_studio_status(client, notebook_id)
 
-    dir_name = notebook_dir_name if notebook_dir_name else sanitize_filename(
-        notebook_title, fallback=notebook_id
+    dir_name = (
+        notebook_dir_name
+        if notebook_dir_name
+        else sanitize_filename(notebook_title, fallback=notebook_id)
     )
     notebook_dir = Path(output_dir).expanduser() / dir_name
     validate_output_path(str(notebook_dir))
@@ -633,7 +635,7 @@ async def download_all_notebooks(
 
     for index, notebook in enumerate(notebooks, 1):
         title = notebook.get("title") or notebook["id"]
-        
+
         base_dir = sanitize_filename(title, fallback=notebook["id"])
         dir_name = base_dir
         counter = 2

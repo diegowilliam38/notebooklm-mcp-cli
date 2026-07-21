@@ -175,7 +175,9 @@ def test_service_error_surfaces_user_message_and_hint():
         patch("notebooklm_tools.mcp.tools.downloads.get_client", return_value=mock_client),
         patch(
             "notebooklm_tools.mcp.tools.downloads.downloads_service.download_all",
-            side_effect=ServiceError("boom", user_message="Notebook not found.", hint="Check the ID."),
+            side_effect=ServiceError(
+                "boom", user_message="Notebook not found.", hint="Check the ID."
+            ),
         ),
     ):
         result = downloads.download_all_artifacts(notebook_id="nb-1")

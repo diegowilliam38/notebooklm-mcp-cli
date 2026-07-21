@@ -132,9 +132,7 @@ def test_all_notebooks_sweep_routes_to_service(runner):
             return_value=_sweep_result(),
         ) as mock_sweep,
     ):
-        result = runner.invoke(
-            app, ["all", "--all-notebooks", "--skip-existing", "--no-progress"]
-        )
+        result = runner.invoke(app, ["all", "--all-notebooks", "--skip-existing", "--no-progress"])
 
     assert result.exit_code == 0
     assert mock_sweep.call_args.kwargs["skip_existing"] is True
@@ -189,7 +187,9 @@ def test_service_error_reports_hint_and_exits_1(runner):
         ),
         patch(
             "notebooklm_tools.services.downloads.download_all",
-            side_effect=ServiceError("boom", user_message="Notebook not found.", hint="Check the ID."),
+            side_effect=ServiceError(
+                "boom", user_message="Notebook not found.", hint="Check the ID."
+            ),
         ),
     ):
         result = runner.invoke(app, ["all", "nb-1", "--no-progress"])
