@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-07-23
+
+### Fixed
+- **Desktop extension finds uvx installed via `pip install --user` on Windows (#267)** — the `.mcpb` launcher could fail to start with `Error: Could not find 'uvx'` even when uv was installed, because `pip install --user uv` places `uvx.exe` in `%APPDATA%\Python\Python3XX\Scripts`, which Windows does not add to PATH and which was missing from the launcher's search list. The launcher now checks the per-user Scripts directory of every installed CPython version. No behavior change on macOS/Linux. Thanks to **@onexoluxion** for the fix!
+
+### Security
+- **Bumped locked dependencies with published CVEs (#268)** — `uv.lock` now pins mcp 1.28.1, starlette 1.3.1, python-multipart 0.0.32, cryptography 49.0.0, and pyjwt 2.13.0. Lockfile-only change: no source or constraint changes, and end users installing via `uv tool install` were already resolving patched versions from PyPI — this brings the committed lockfile (used by CI and contributors) up to date. Thanks to **@onexoluxion** for the precise report and verified fix command!
+
 ## [0.9.1] - 2026-07-22
 
 ### Added
