@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.7] - 2026-10-23
+
+### Fixed
+
+- **`nlm setup add claude-desktop` now writes to the right file on migrated Windows Store installs.** Newer Microsoft Store builds of Claude Desktop move their user data from `%LOCALAPPDATA%\Packages\<package>\LocalCache\Roaming\Claude` to `%LOCALAPPDATA%\Claude-Data\<package>`. We only knew the old path, so `setup add` wrote a config the app never read, and `setup list` read the same file back and showed a false ✓. The resolver now follows the app's own rule: it uses the new folder only when `Claude-Data\<package name, lowercased>` exists as a directory and no `.user-data-back.<package>` marker sits in the old folder. An empty `Claude-Data` folder next to a live old folder keeps the old path, so working installs don't change. `setup list` goes through the same resolver, so it reports the file Claude Desktop actually loads ([#378](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/378)).
+
+### Notes
+
+- Unverified: when the new folder exists with neither a `left` nor a `back` marker, Claude Desktop runs an extra check we haven't read. We treat that case as migrated.
+
+### Credits
+
+Thanks to **@diogoflorencio** for the report and the manual workaround in [#378](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/378).
+
 ## [0.15.6] - 2026-10-17
 
 ### Fixed
