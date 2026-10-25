@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.8] - 2026-10-25
+
+### Fixed
+
+- Accept negative Google session IDs in the browser-backed CDP transport and the `f.sid` page fallback, preserving the leading minus sign ([#379](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/379)).
+- Detect Google's signed-out landing page even when Google returns HTTP 200, and report expired authentication before attempting CSRF extraction or writing a misleading page-structure debug dump ([#380](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/380)).
+- Reject file-mode writes copied from a stale root `auth.json` mirror when the canonical default profile contains different cookies. Check under the profile lock, including `force=True` writes, while allowing new login credentials to update both stores ([#381](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/381)).
+
+### Changed
+
+- Added authentication regression tests and documented live verification with isolated credential storage. Live checks confirmed repeated notebook listing through HTTP and CDP, authenticated homepage refresh, signed-out error reporting, and preservation of working credentials after a rejected stale-mirror write. Negative session IDs were verified with regression fixtures because the live session supplied a positive ID.
+
+### Credits
+
+Thanks to **@alexchaifu-ship-it** for reporting the negative session ID bug in [#379](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/379), and **@bradmarshall987** for the detailed authentication reports and reproductions in [#380](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/380) and [#381](https://github.com/jacob-bd/gemini-notebook-mcp-cli/issues/381).
+
 ## [0.15.7] - 2026-10-23
 
 ### Fixed
